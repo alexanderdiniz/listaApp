@@ -64,7 +64,7 @@
             padding: 0 10px; background: var(--color-card); border-bottom: var(--border);
             z-index: 50; flex-shrink: 0;
         }
-        .logo { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; }
+        .logo { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; cursor: pointer; } /* Logo clicável */
         .logo span { color: var(--primary); }
         .header-actions { display: flex; gap: 2px; }
         
@@ -253,7 +253,7 @@
         .btn-modal { flex: 1; height: 32px; border-radius: 4px; border: none; font-weight: 600; cursor: pointer; font-size: 0.8rem;}
         .btn-modal.cancel { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); }
         .btn-modal.confirm { background: var(--primary); color: white; }
-        .btn-modal.confirm.delete { background: var(--danger); } /* Estilo vermelho para confirmar delete */
+        .btn-modal.confirm.delete { background: var(--danger); }
 
         /* --- TOAST (NOTIFICAÇÃO) --- */
         .toast-container { position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%); z-index: 300; width: 90%; max-width: 280px; pointer-events: none; }
@@ -280,6 +280,8 @@
     <header class="app-header">
         <div class="logo">🛒 <span>LISTA</span>APP</div>
         <div class="header-actions">
+            <!-- BOTÃO INÍCIO ADICIONADO -->
+            <button class="btn-icon" id="btnHome" title="Início"><i class="fas fa-home"></i></button>
             <button class="btn-icon" id="btnTheme" title="Tema"><i class="fas fa-moon"></i></button>
             <button class="btn-icon" id="btnSelectMode" title="Selecionar Vários" style="color: var(--primary); background: rgba(255,255,255,0.05);"><i class="fas fa-check-square"></i></button>
             <button class="btn-icon" id="btnMenu" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
@@ -428,7 +430,7 @@
         let editId = null;
 
         // Custom Confirm Logic
-        let pendingAction = null; // Guarda a função a ser executada
+        let pendingAction = null; 
 
         const PRIORITY_VAL = { 'urgent': 1, 'important': 2, 'normal': 3 };
 
@@ -457,6 +459,25 @@
         const save = () => {
             localStorage.setItem(DB_KEY, JSON.stringify(items));
             render();
+        };
+
+        // === FUNÇÃO PARA VOLTAR AO INÍCIO ===
+        const goHome = () => {
+            // Se estiver em modo seleção, desativa
+            if(isSelectionMode) {
+                isSelectionMode = false;
+                selectedIds.clear();
+            }
+            // Reseta Filtro para "Todos"
+            filter = 'all';
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            const allChip = document.querySelector('.chip[data-filter="all"]');
+            if(allChip) allChip.classList.add('active');
+
+            render();
+            // Rola para o topo (input de adicionar)
+            document.getElementById('inputSection').scrollIntoView({ behavior: 'smooth' });
+            toast('Início');
         };
 
         // === CUSTOM CONFIRM FUNCTION ===
@@ -553,8 +574,8 @@
                     ${!isSelectionMode ? `
                     <div class="item-actions">
                         <button class="action-btn check-btn" title="Concluir"><i class="fas fa-${item.done ? 'undo' : 'check'}"></i></button>
-                        <button class="action-btn" title="Editar" onclick="openEdit(${item.id})"><i class="fas fa-pen"></i></button>
-                        <button class="action-btn del-btn" title="Excluir" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button>
+                        <button class="action-btn edit-btn" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="action-btn del-btn" title="Excluir"><i class="fas fa-trash"></i></button>
                     </div>` : ''}
                 `;
                 el.onclick = (e) => {
@@ -569,8 +590,10 @@
                 if(!isSelectionMode) {
                     const checkBtn = el.querySelector('.check-btn');
                     if(checkBtn) { checkBtn.onclick = (e) => { e.stopPropagation(); toggleDone(item.id); }; }
-                    const otherBtns = el.querySelectorAll('.action-btn:not(.check-btn)');
-                    otherBtns.forEach(btn => btn.onclick = (e) => e.stopPropagation());
+                    const editBtn = el.querySelector('.edit-btn');
+                    if(editBtn) { editBtn.onclick = (e) => { e.stopPropagation(); openEdit(item.id); }; }
+                    const delBtn = el.querySelector('.del-btn');
+                    if(delBtn) { delBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); }; }
                 }
                 listEl.appendChild(el);
             });
@@ -596,7 +619,6 @@
 
         const toggleDone = (id) => { const i = items.find(x => x.id === id); if(i) { i.done = !i.done; save(); } };
         
-        // MODIFIED DELETE to use Custom Confirm
         const deleteItem = (id) => { 
             showConfirm('Deseja realmente apagar este item?', () => {
                 items = items.filter(x => x.id !== id); 
@@ -727,6 +749,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             if(localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
             document.getElementById('btnTheme').onclick = () => { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); };
+
+            // Bind Home Button
+            document.getElementById('btnHome').onclick = goHome;
+            document.querySelector('.logo').onclick = goHome;
 
             document.getElementById('btnAdd').onclick = addItem;
             document.getElementById('btnSelectMode').onclick = toggleSelectMode;
